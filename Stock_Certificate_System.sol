@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 contract SCS is ERC1155 {
-    uint256 public constant GOLD = 0;
+    uint256 public constant SWORD = 3;
 
     // event SubmitTransaction(
     //     address indexed owner,
@@ -17,17 +17,16 @@ contract SCS is ERC1155 {
     // event RevokeConfirmation(address indexed owner, uint indexed Transaction_Index);
     // event ExecuteTransaction(address indexed owner, uint indexed Transaction_Index);
 
-    address[] public owners;
-    address contractCreator;
-    mapping(address => bool) public isOwner;
-    uint public numConfirmationsRequired;
+    address[] public directors;
+    address merchant;
+    mapping(address => bool) public isDirector;
+    uint public threshold;
 
     struct Transaction {
-        address to;
-        uint value;
-        bytes data;
-        bool executed;
-        uint numConfirmations;
+        address Customer;
+        uint ammount;
+        bool deal;
+        uint numOfAcknowledgments;
     }
 
     // mapping from tx index => owner => bool
@@ -35,8 +34,8 @@ contract SCS is ERC1155 {
 
     Transaction[] public transactions;
 
-    modifier onlyOwner() {
-        require(isOwner[msg.sender], "not owner");
+    modifier Director_only() {
+        require(isDirector[msg.sender], "not owner");
         _;
     }
 
@@ -46,7 +45,7 @@ contract SCS is ERC1155 {
     }
 
     modifier notExecuted(uint _txIndex) {
-        require(!transactions[_txIndex].executed, "tx already executed");
+        require(!transactions[_txIndex].deal, "tx already executed");
         _;
     }
 
@@ -55,56 +54,55 @@ contract SCS is ERC1155 {
         _;
     }
 
-    constructor(address[] memory _owners, uint _numConfirmationsRequired, uint _originalShare) public ERC1155("https://raw.githubusercontent.com/allen880117/nanikore/main/metadata/token/{id}.json")
+    constructor(address[] memory _directors, uint _threshold, uint _originalShare) public ERC1155("https://raw.githubusercontent.com/hsinyang0816/Stock_Certificate_System/{id}.json}")
     {
-        require(_owners.length > 0, "owners required");
+        require(_directors.length > 0, "directors required");
         require(
-            _numConfirmationsRequired > 0 &&
-                _numConfirmationsRequired <= _owners.length,
+            _threshold > 0 &&
+                _threshold <= _directors.length,
             "invalid number of required confirmations"
         );
 
-        for (uint i = 0; i < _owners.length; i++) {
-            address owner = _owners[i];
+        for (uint i = 0; i < _directors.length; i++) {
+            address director = _directors[i];
 
-            require(owner != address(0), "invalid owner");
-            require(!isOwner[owner], "owner not unique");
+            require(director != address(0), "invalid director");
+            require(!isDirector[director], "director not unique");
 
-            isOwner[owner] = true;
-            owners.push(owner);
+            isDirector[director] = true;
+            directors.push(director);
         }
 
-        require(isOwner[msg.sender], "Contract creator is not in owner list");
+        require(isDirector[msg.sender], "Contract creator is not in directors list");
 
-        contractCreator = msg.sender;
-        numConfirmationsRequired = _numConfirmationsRequired;
-        _mint(msg.sender, GOLD, _originalShare, "");
+        merchant = msg.sender;
+        threshold = _threshold;
+        _mint(msg.sender, SWORD, _originalShare, "");
     }
 
     function getStock(address addr) view public returns (uint256){
-        return balanceOf(addr, 0);
+        return balanceOf(addr, SWORD);
     }
 
-    function burnStock(address addr, uint amount) public onlyOwner{
-        _burn(addr, GOLD, amount);
+    function burnStock(address addr, uint amount) public Director_only{
+        _burn(addr, SWORD, amount);
     }
 
-    function mintStock(uint amount) public onlyOwner{
-        _mint(contractCreator, GOLD, amount, "");
+    function mintStock(uint amount) public Director_only{
+        _mint(merchant, SWORD, amount, "");
     }
 
-    function submitIssueRequest(address _to, uint _value) public{
-        uint remain = balanceOf(contractCreator, GOLD);
-        require(remain >= _value, "not enough stocks to give");
+    function submitIssueRequest(address _Customer, uint _ammount) public{
+        uint remain = balanceOf(merchant, SWORD);
+        require(remain >= _ammount, "not enough stocks to give");
         uint txIndex = transactions.length;
 
         transactions.push(
             Transaction({
-                to: _to,
-                value: _value,
-                data: "",
-                executed: false,
-                numConfirmations: 0
+                Customer: _Customer,
+                ammount: _ammount,
+                deal: false,
+                numOfAcknowledgments: 0
             })
         );
 
@@ -112,12 +110,12 @@ contract SCS is ERC1155 {
     }
 
     // Owners approve pending transactions
-    function confirmIssueRequest(uint _txIndex) public onlyOwner txExists(_txIndex) notExecuted(_txIndex) notConfirmed(_txIndex){
+    function confirmIssueRequest(uint _txIndex) public Director_only txExists(_txIndex) notExecuted(_txIndex) notConfirmed(_txIndex){
         Transaction storage transaction = transactions[_txIndex];
-        transaction.numConfirmations += 1;
+        transaction.numOfAcknowledgments += 1;
         isConfirmed[_txIndex][msg.sender] = true;
 
-        if (transaction.numConfirmations >= numConfirmationsRequired) {
+        if (transaction.numOfAcknowledgments >= threshold) {
             executeTransaction(_txIndex);
         }
 
@@ -128,30 +126,30 @@ contract SCS is ERC1155 {
         Transaction storage txn = transactions[_txIndex];
 
         require(
-            txn.numConfirmations >= numConfirmationsRequired,
+            txn.numOfAcknowledgments >= threshold,
             "too few confirmations"
         );
 
-        txn.executed = true;
+        txn.deal = true;
 
-        safeTransferFrom(contractCreator, txn.to, GOLD, txn.value, txn.data);
+        safeTransferFrom(merchant, txn.Customer, SWORD, txn.ammount, "");
 
         // emit ExecuteTransaction(msg.sender, _txIndex);
     }
 
-    function revokeConfirmation(uint _txIndex) public onlyOwner txExists(_txIndex) notExecuted(_txIndex){
+    function revokeConfirmation(uint _txIndex) public Director_only txExists(_txIndex) notExecuted(_txIndex){
         Transaction storage transaction = transactions[_txIndex];
 
         require(isConfirmed[_txIndex][msg.sender], "tx not confirmed");
 
-        transaction.numConfirmations -= 1;
+        transaction.numOfAcknowledgments -= 1;
         isConfirmed[_txIndex][msg.sender] = false;
 
         // emit RevokeConfirmation(msg.sender, _txIndex);
     }
 
     function getOwners() public view returns (address[] memory) {
-        return owners;
+        return directors;
     }
 
     function getTransactionCount() public view returns (uint) {
@@ -162,19 +160,17 @@ contract SCS is ERC1155 {
         returns (
             address to,
             uint value,
-            bytes memory data,
-            bool executed,
+            bool deal,
             uint numConfirmations
         )
     {
         Transaction storage transaction = transactions[_txIndex];
 
         return (
-            transaction.to,
-            transaction.value,
-            transaction.data,
-            transaction.executed,
-            transaction.numConfirmations
+            transaction.Customer,
+            transaction.ammount,
+            transaction.deal,
+            transaction.numOfAcknowledgments
         );
     }
 }

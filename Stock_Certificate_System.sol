@@ -14,8 +14,7 @@ contract SCS is ERC1155Holder {
     string[] public companyNames;
 
     function addCompoany(string memory _companyName, string memory _establishingDate,uint _shares , address[] memory _directors, uint _numConfirmationsRequired) public {
-        require(registered[_companyName] == false, "This company is already established");
-        // console.log("msg_sender in SCS:", msg.sender);
+        require(registered[_companyName] == false, "ERROR: This company is already established");
         SCC c = new SCC(_companyName,  _establishingDate, _shares,  _directors, _numConfirmationsRequired);
 
         companies[_companyName] = c;
@@ -24,7 +23,7 @@ contract SCS is ERC1155Holder {
     }
 
     modifier isRegistered(string memory name) {
-        require(registered[name], "company does not exist");
+        require(registered[name], "ERROR: Company does not exist");
         _;
     }
 

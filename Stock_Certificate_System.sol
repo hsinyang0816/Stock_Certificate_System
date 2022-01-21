@@ -7,13 +7,21 @@ import "./Stock_Certificate_Company.sol";
 import "hardhat/console.sol";
 
 contract SCS is ERC1155Holder {
-    
+    // List of companies
+    string[] public companyNames;
+
+    // Per condition checker
     mapping(string => SCC) public companies;
     mapping(string => bool) public registered;
 
-    string[] public companyNames;
+    // modifier
+    modifier isRegistered(string memory _companyName) {
+        require(registered[_companyName], "ERROR: Company does not exist");
+        _;
+    }
 
-    function addCompoany(string memory _companyName, string memory _establishingDate,uint _shares , address[] memory _directors, uint _numConfirmationsRequired) public {
+    // Function of adding new company
+    function addCompoany(string memory _companyName, string memory _establishingDate, uint _shares, address[] memory _directors, uint _numConfirmationsRequired) public {
         require(registered[_companyName] == false, "ERROR: This company is already established");
         SCC c = new SCC(_companyName,  _establishingDate, _shares,  _directors, _numConfirmationsRequired);
 
@@ -22,55 +30,40 @@ contract SCS is ERC1155Holder {
         companyNames.push(_companyName);
     }
 
-    modifier isRegistered(string memory name) {
-        require(registered[name], "ERROR: Company does not exist");
-        _;
-    }
-
-
-    function showCompany() public view{
+    // Function of showing company's information
+    function showCompanyInformation() public view{
         for(uint i = 0; i < companyNames.length; ++i) {
             console.log("%s: %s", companyNames[i], address(companies[companyNames[i]]));
         }
     }
 
-    function issue(string memory _companyName, uint _ammount) 
-    public 
-    isRegistered(_companyName) 
-    {
+    // Function of issuing stock for designated company
+    function issue(string memory _companyName, uint _ammount) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.submitAction(msg.sender, "issue", address(0), _ammount);
+        c.submitAction(msg.sender, "Issue", address(0), _ammount);
     }
 
-    function reissue(string memory _companyName, uint _ammount) 
-    public 
-    isRegistered(_companyName) 
-    {
+    // Function of reissuing stock for designated company
+    function reissue(string memory _companyName, uint _ammount) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.submitAction(msg.sender, "reissue", address(0), _ammount);
+        c.submitAction(msg.sender, "Reissue", address(0), _ammount);
     }
 
-    function transfer(string memory _companyName, address target, uint _ammount) 
-    public
-    isRegistered(_companyName)
-    {
+    // Function transferring stock from company A to company B
+    function transaction(string memory _companyName, address target, uint _ammount) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.submitAction(msg.sender, "transfer", target, _ammount);
+        c.submitAction(msg.sender, "Transaction", target, _ammount);
     }
 
-    function redemption(string memory _companyName, address target, uint _ammount) 
-    public
-    isRegistered(_companyName)
-    {
+    // Function redeeming stock from company B back to company A
+    function redemption(string memory _companyName, address target, uint _ammount) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.submitAction(msg.sender, "redeption", target, _ammount);
+        c.submitAction(msg.sender, "Redeption", target, _ammount);
     }
 
-    function confirmAction(string memory _companyName, uint _acIndex, uint _ammount) 
-    public 
-    isRegistered(_companyName)
-    {
+    // Function for others directors confirm the action
+    function confirmAction(string memory _companyName, uint  _actionID) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.confirmAction(msg.sender, _acIndex, _ammount);
+        c.confirmAction(msg.sender,  _actionID);
     }
 }

@@ -11,11 +11,11 @@ contract SCC is ERC1155 {
     uint256 public constant SWORD = 3;
    
     // Company's information initialization 
-    string name;
-    string fundingDate;
-    uint shares;
+    string public name;
     address[] public directors;
     uint public numConfirmationsRequired;
+    string public establishingDate;
+    uint public shares;
 
     // Per condition checker
     mapping(address => bool) public isDirector;
@@ -32,7 +32,7 @@ contract SCC is ERC1155 {
         uint amount;
     }
 
-    Action[] public actions;
+    Action[] private actions;
 
      
     // modifier
@@ -65,12 +65,20 @@ contract SCC is ERC1155 {
 
     event ConfirmAction(
         address indexed director,
-        uint indexed acIndex,
-        uint indexed amount
+        uint indexed acIndex
+    );
+
+    event ExecuteAction(
+        address indexed executor,
+        bool executed,
+        uint numConfirmations,
+        string indexed actionName,
+        address indexed target,
+        uint amount
     );
 
     // Company constructor, including company name, funding date, shares, directors list and number of confirmations required
-    constructor(string memory _name, string memory _fundingDate, uint _shares, address[] memory _directors, uint _numConfirmationsRequired) ERC1155("https://raw.githubusercontent.com/hsinyang0816/Stock_Certificate_System/{id}.json}") {
+    constructor(string memory _name, string memory _establishingDate, uint _shares, address[] memory _directors, uint _numConfirmationsRequired) ERC1155("https://raw.githubusercontent.com/hsinyang0816/Stock_Certificate_System/{id}.json}") {
         // Check whether directors list is given or not
         require(_directors.length > 0, "ERROR: Directors required");
         // Check whether the number of confirmations required reasonable or not
@@ -92,7 +100,7 @@ contract SCC is ERC1155 {
 
         numConfirmationsRequired = _numConfirmationsRequired;
         name = _name;
-        fundingDate = _fundingDate;
+        establishingDate = _establishingDate;
         shares = _shares;
 
         // mint the initial tokens
@@ -110,6 +118,20 @@ contract SCC is ERC1155 {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
 
+    // function addressToString(address _addr) public pure returns(string) {
+    //     bytes32 value = bytes32(uint256(uint160(_addr)));
+    //     bytes memory alphabet = "0123456789abcdef";
+
+    //     bytes memory str = new bytes(51);
+    //     str[0] = "0";
+    //     str[1] = "x";
+    //     for (uint i = 0; i < 20; i++) {
+    //         str[2+i*2] = alphabet[uint(uint8(value[i + 12] >> 4))];
+    //         str[3+i*2] = alphabet[uint(uint8(value[i + 12] & 0x0f))];
+    //     }
+    //     return string(str);
+    // }  
+
     // Function of issuing token
     function issue(uint _amount) private {
         _mint(msg.sender, SWORD, _amount, "");
@@ -118,30 +140,34 @@ contract SCC is ERC1155 {
     
     // Function of reissuing token
     function reissue(uint _amount) private {
+        require(_amount <= shares, "ERROR: Not enough shares to burn");
         _burn(msg.sender, SWORD, _amount);
         _mint(msg.sender, SWORD, _amount*2, "");
         console.log("Reissue %s token", _amount*2);
     }
 
     // Function of transaction
-    function transaction(address target, uint _amount) private {
-        safeTransferFrom(msg.sender, target, SWORD, _amount, "");
+    function transaction(address _target, uint _amount) private {
+        // require(_amount <= shares, "ERROR: Not enough shares to transfer to : %s", addressToString(_target));
+        safeTransferFrom(msg.sender, _target, SWORD, _amount, "");
         console.log("Transaction");
     }
 
     // Function of redemption
-    function redemption(address target, uint _amount) private {
-        safeTransferFrom(target, msg.sender, SWORD, _amount, "");
+    function redemption(address _target, uint _amount) private {
+        safeTransferFrom(_target, msg.sender, SWORD, _amount, "");
         _burn(msg.sender, SWORD, _amount);
         console.log("Redemption");
     }
 
     // Function of summiting action by the executor of company
     function submitAction(address _executor, string memory _actionName, address _target, uint _amount) public Director_only(_executor) ValidAction_only(_actionName){
+        // Transaction and redemption require address
         if (withStrs(_actionName, "Transaction") || withStrs(_actionName, "Redemption") ) {
             require(_target != address(0), "ERROR: Address required");
         }
 
+        // Initial new action
         uint actionID = actions.length;
         actions.push(
             Action({
@@ -153,36 +179,39 @@ contract SCC is ERC1155 {
                 amount: _amount
             })
         );
-
+        console.log("The action ID is: %s", actionID);
+        console.log("Please remember this ID and inform other directors to certify for this contract!");
         emit SubmitAction(_executor, actionID, _amount);
     }
     
     // Function of confirming action by the other directors of company
-    function confirmAction(address _director, uint _actionID, uint _amount) public Director_only(_director) notExecuted(_actionID) notConfirmed(_director, _actionID){
+    function confirmAction(address _director, uint _actionID) public Director_only(_director) notExecuted(_actionID) notConfirmed(_director, _actionID){
         Action storage action = actions[_actionID];
         action.numConfirmations += 1;
         isConfirmed[_actionID][_director] = true;
 
         if (action.numConfirmations >= numConfirmationsRequired) 
-            executeAction(_actionID, _amount);
+            executeAction(_actionID);
 
-        emit ConfirmAction(_director, _actionID, _amount);
+        emit ConfirmAction(_director, _actionID);
     }
 
     // Function of executing action 
-    function executeAction(uint _actionID, uint _amount) private{
+    function executeAction(uint _actionID) private{
         Action storage action = actions[_actionID];
 
         action.executed = true;
-
         if (withStrs(action.actionName, "Issue")) 
-            issue(_amount);
+            issue(action.amount);
         else if (withStrs(action.actionName, "Reissue")) 
-            reissue(_amount);
+            reissue(action.amount);
         else if (withStrs(action.actionName, "Transaction")) 
-            transaction(action.target, _amount);
+            transaction(action.target, action.amount);
         else if (withStrs(action.actionName,"Redemption")) 
-            redemption(action.target, _amount);
+            redemption(action.target, action.amount);
+
+        emit ExecuteAction(action.executor, action.executed, action.numConfirmations, action.actionName, action.target, action.amount);
     }
 
+    
 }

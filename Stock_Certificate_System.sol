@@ -35,6 +35,7 @@ contract SCS is ERC1155Holder {
         for(uint i = 0; i < companyNames.length; ++i) {
             console.log("%s: %s", companyNames[i], address(companies[companyNames[i]]));
         }
+        console.log("----------------------------------------------------------------");
     }
 
     // Function of issuing stock for designated company

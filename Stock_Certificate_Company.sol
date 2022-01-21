@@ -7,9 +7,24 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 import "hardhat/console.sol";
 
 contract SCC is ERC1155 {
+    // defined our's token 
     uint256 public constant SWORD = 3;
+   
+    // Company's information initialization 
+    string name;
+    string fundingDate;
+    uint shares;
+    address[] public directors;
+    uint public numConfirmationsRequired;
+
+    // Per condition checker
+    mapping(address => bool) public isDirector;
+    mapping(string => bool) public isValidAction;
+    mapping(uint => mapping(address => bool)) public isConfirmed;
+
+    // Action structure
     struct Action {
-        address promotor;
+        address executor;
         bool executed;
         uint numConfirmations;
         string actionName;
@@ -17,66 +32,62 @@ contract SCC is ERC1155 {
         uint amount;
     }
 
-    string name;
-    string fundingDate;
-    uint shares;
-    address[] public funders;
-    uint public numConfirmationsRequired;
-
     Action[] public actions;
 
-    mapping(address => bool) public isFunder;
-    mapping(string => bool) public isValidAction;
-    mapping(uint => mapping(address => bool)) public isConfirmed;
+     
+    // modifier
+    modifier Director_only(address _Director) {
+        require(isDirector[_Director], "ERROR: Thsi is not director");
+        _;
+    }
 
+    modifier ValidAction_only(string memory _action) {
+        require(isValidAction[_action], "ERROR: This action is invalid");
+        _;
+    }
+
+    modifier notExecuted(uint _acIndex) {
+        require(!actions[_acIndex].executed, "ERROR: This action is already exectued");
+        _;
+    }
+    
+    modifier notConfirmed(address _director, uint _acIndex) {
+        require(!isConfirmed[_acIndex][_director], "ERROR: This action is already confirmed");
+        _;
+    }
+
+    // event trigger
     event SubmitAction(
-        address indexed promotor,
+        address indexed executor,
         uint indexed acIndex, 
         uint indexed amount
     );
 
     event ConfirmAction(
-        address indexed funder,
+        address indexed director,
         uint indexed acIndex,
         uint indexed amount
     );
 
-    modifier onlyFunder(address _funder) {
-        require(isFunder[_funder], "not funder");
-        _;
-    }
+    // Company constructor, including company name, funding date, shares, directors list and number of confirmations required
+    constructor(string memory _name, string memory _fundingDate, uint _shares, address[] memory _directors, uint _numConfirmationsRequired) ERC1155("https://raw.githubusercontent.com/hsinyang0816/Stock_Certificate_System/{id}.json}") {
+        // Check whether directors list is given or not
+        require(_directors.length > 0, "ERROR: Directors required");
+        // Check whether the number of confirmations required reasonable or not
+        require(_numConfirmationsRequired > 0 && _numConfirmationsRequired <= _directors.length, "ERROR: Invalid number of required confirmations");
+        // Check whether shares number is zero or not
+        require(_shares > 0, "ERROR: Shares should be at least 1");
 
-    modifier onlyValidAction(string memory _action) {
-        require(isValidAction[_action], "action is invalid");
-        _;
-    }
+        for (uint i = 0; i < _directors.length; i++) {
+            address director = _directors[i];
+            // Check whether there is invalid director or not
+            require(director != address(0), "ERROR: Invalid director");
+            // Check whether the director is repeat or not
+            require(!isDirector[director], "ERROR: Director not unique");
 
-    modifier notExecuted(uint _acIndex) {
-        require(!actions[_acIndex].executed, "action already exectued");
-        _;
-    }
-    
-    modifier notConfirmed(address _funder, uint _acIndex) {
-        require(!isConfirmed[_acIndex][_funder], "action already confirmed");
-        _;
-    }
-
-    constructor(string memory _name, string memory _fundingDate, uint _shares, address[] memory _funders, uint _numConfirmationsRequired) ERC1155("https://raw.githubusercontent.com/hsinyang0816/Stock_Certificate_System/{id}.json}") {
-        require(_funders.length > 0, "owners required");
-        require(_numConfirmationsRequired > 0 && 
-                _numConfirmationsRequired <= _funders.length,
-                "invalid number of required confirmations"
-        );
-        require(_shares > 0, "shares should be at least 1");
-
-        for (uint i = 0; i < _funders.length; i++) {
-            address funder = _funders[i];
-
-            require(funder != address(0), "invalid owner");
-            require(!isFunder[funder], "funder not unique");
-
-            isFunder[funder] = true;
-            funders.push(funder);
+            // Successfully construct the directors list
+            isDirector[director] = true;
+            directors.push(director);
         }
 
         numConfirmationsRequired = _numConfirmationsRequired;
@@ -84,33 +95,57 @@ contract SCC is ERC1155 {
         fundingDate = _fundingDate;
         shares = _shares;
 
-        // mint the genesis SCN
+        // mint the initial tokens
         _mint(msg.sender, SWORD, shares, "");
 
+        // Below is the four valid action for each company to execute
         isValidAction["Issue"] = true;
         isValidAction["Reissue"] = true;
         isValidAction["Transfer"] = true;
         isValidAction["Redeption"] = true;
     }
 
-    function compareString(string memory a, string memory b) public pure returns (bool) {
+    // Function of comparing whether two input string is indentical or not 
+    function withStrs(string memory a, string memory b) public pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
 
-    function submitAction(address _promotor, string memory _actionName, address _target, uint _amount) 
-    public 
-    onlyFunder(_promotor)
-    onlyValidAction(_actionName)
-    {
+    // Function of issuing token
+    function issue(uint _amount) private {
+        _mint(msg.sender, SWORD, _amount, "");
+        console.log("Issue %s token", _amount);
+    }
+    
+    // Function of reissuing token
+    function reissue(uint _amount) private {
+        _burn(msg.sender, SWORD, _amount);
+        _mint(msg.sender, SWORD, _amount*2, "");
+        console.log("Reissue %s token", _amount*2);
+    }
 
-        if (compareString(_actionName, "Transfer") || compareString(_actionName, "Redemption") ) {
-            require(_target != address(0));
+    // Function of transaction
+    function transaction(address target, uint _amount) private {
+        safeTransferFrom(msg.sender, target, SWORD, _amount, "");
+        console.log("Transaction");
+    }
+
+    // Function of redemption
+    function redemption(address target, uint _amount) private {
+        safeTransferFrom(target, msg.sender, SWORD, _amount, "");
+        _burn(msg.sender, SWORD, _amount);
+        console.log("Redemption");
+    }
+
+    // Function of summiting action by the executor of company
+    function submitAction(address _executor, string memory _actionName, address _target, uint _amount) public Director_only(_executor) ValidAction_only(_actionName){
+        if (withStrs(_actionName, "Transaction") || withStrs(_actionName, "Redemption") ) {
+            require(_target != address(0), "ERROR: Address required");
         }
 
-        uint acIndex = actions.length;
+        uint actionID = actions.length;
         actions.push(
             Action({
-                promotor: _promotor,
+                executor: _executor,
                 executed: false,
                 numConfirmations: 0,
                 actionName: _actionName,
@@ -119,63 +154,35 @@ contract SCC is ERC1155 {
             })
         );
 
-        emit SubmitAction(_promotor, acIndex, _amount);
+        emit SubmitAction(_executor, actionID, _amount);
     }
     
-    function confirmAction(address _funder, uint _acIndex, uint _amount)
-    public
-    onlyFunder(_funder)
-    notExecuted(_acIndex)
-    notConfirmed(_funder, _acIndex)
-    {
-        Action storage action = actions[_acIndex];
+    // Function of confirming action by the other directors of company
+    function confirmAction(address _director, uint _actionID, uint _amount) public Director_only(_director) notExecuted(_actionID) notConfirmed(_director, _actionID){
+        Action storage action = actions[_actionID];
         action.numConfirmations += 1;
-        isConfirmed[_acIndex][_funder] = true;
+        isConfirmed[_actionID][_director] = true;
 
-        if (action.numConfirmations >= numConfirmationsRequired) {
-            executeAction(_acIndex, _amount);
-        }
+        if (action.numConfirmations >= numConfirmationsRequired) 
+            executeAction(_actionID, _amount);
 
-        emit ConfirmAction(_funder, _acIndex, _amount);
+        emit ConfirmAction(_director, _actionID, _amount);
     }
 
-    function executeAction(uint _acIndex, uint _amount) private{
-        Action storage action = actions[_acIndex];
+    // Function of executing action 
+    function executeAction(uint _actionID, uint _amount) private{
+        Action storage action = actions[_actionID];
 
         action.executed = true;
 
-        if (compareString(action.actionName, "Issue")) {
+        if (withStrs(action.actionName, "Issue")) 
             issue(_amount);
-        }else if (compareString(action.actionName, "Reissue")) {
+        else if (withStrs(action.actionName, "Reissue")) 
             reissue(_amount);
-        }else if (compareString(action.actionName, "Transfer")) {
-            transfer(action.target, _amount);
-        }else if (compareString(action.actionName,"Redemption")) {
+        else if (withStrs(action.actionName, "Transaction")) 
+            transaction(action.target, _amount);
+        else if (withStrs(action.actionName,"Redemption")) 
             redemption(action.target, _amount);
-        }
     }
 
-    function issue(uint _amount) private {
-        _mint(msg.sender, SWORD, _amount, "");
-        // console.log("issue a token");
-        console.log("Issue %s token", _amount);
-    }
-    
-    function reissue(uint _amount) private {
-        _burn(msg.sender, SWORD, _amount);
-        _mint(msg.sender, SWORD, _amount*2, "");
-        // console.log("reissue 2 token");
-        console.log("Reissue %s token", _amount*2);
-    }
-
-    function transfer(address target, uint _amount) private {
-        safeTransferFrom(msg.sender, target, SWORD, _amount, "");
-        console.log("Transfered");
-    }
-
-    function redemption(address target, uint _amount) private {
-        safeTransferFrom(target, msg.sender, SWORD, _amount, "");
-        _burn(msg.sender, SWORD, _amount);
-        console.log("Redemption");
-    }
 }

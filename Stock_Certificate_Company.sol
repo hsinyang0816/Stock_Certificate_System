@@ -38,7 +38,7 @@ contract SCC is ERC1155 {
      
     // modifier
     modifier Director_only(address _Director) {
-        require(isDirector[_Director], "ERROR: Thsi is not director");
+        require(isDirector[_Director], "ERROR: This is not director");
         _;
     }
 
@@ -79,7 +79,7 @@ contract SCC is ERC1155 {
     );
 
     // Company constructor, including company name, funding date, shares, directors list and number of confirmations required
-    constructor(string memory _name, string memory _establishingDate, uint _shares, address[] memory _directors, uint _numConfirmationsRequired) ERC1155("https://raw.githubusercontent.com/hsinyang0816/Stock_Certificate_System/{id}.json}") {
+    constructor(string memory _name, string memory _establishingDate, uint _shares, address[] memory _directors, uint _numConfirmationsRequired) ERC1155("https://abcoathup.github.io/SampleERC1155/api/token/{id}.json") {
         // Check whether directors list is given or not
         require(_directors.length > 0, "ERROR: Directors required");
         // Check whether the number of confirmations required reasonable or not
@@ -111,7 +111,7 @@ contract SCC is ERC1155 {
         // Below is the four valid action for each company to execute
         isValidAction["Issue"] = true;
         isValidAction["Reissue"] = true;
-        isValidAction["Transfer"] = true;
+        isValidAction["Transaction"] = true;
         isValidAction["Redeption"] = true;
     }
 

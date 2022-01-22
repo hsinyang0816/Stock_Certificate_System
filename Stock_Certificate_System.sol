@@ -33,7 +33,14 @@ contract SCS is ERC1155Holder {
     // Function of showing company's information
     function showCompanyInformation() public view{
         for(uint i = 0; i < companyNames.length; ++i) {
-            console.log("%s: %s", companyNames[i], address(companies[companyNames[i]]));
+            console.log("Company Name: %s", companyNames[i]);
+            console.log("Company Establishing Date: %s", companies[companyNames[i]].getestablishingDate());
+            console.log("Number of confirmations required: %s", companies[companyNames[i]].getnumConfirmationsRequired());
+            console.log("Company's stocks remain: %s", companies[companyNames[i]].getshares());
+            console.log("Directors list: ");
+            for(uint j = 0; j < companies[companyNames[i]].getdirectors().length; ++j){
+                console.log("       %s", companies[companyNames[i]].getdirectors()[j]);         
+            }
         }
         console.log("----------------------------------------------------------------");
     }

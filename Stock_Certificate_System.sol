@@ -63,13 +63,13 @@ contract SCS is ERC1155Holder {
     // Function transferring stock from company A to company B
     function transaction(string memory _companyName, address target, uint _ammount) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.submitAction(msg.sender, "Transaction", companies_address[target].getcontract_creator(), _ammount);
+        c.submitAction(msg.sender, "Transaction", target, _ammount);
     }
 
     // Function redeeming stock from company B back to company A
     function redemption(string memory _companyName, address target, uint _ammount) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.submitAction(msg.sender, "Redeption", companies_address[target].getcontract_creator(), _ammount);
+        c.submitAction(msg.sender, "Redeption", target, _ammount);
     }
 
     // Function for others directors confirm the action

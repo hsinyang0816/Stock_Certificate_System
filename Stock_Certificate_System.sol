@@ -11,9 +11,9 @@ contract SCS is ERC1155Holder {
     string[] public companyNames;
 
     // Per condition checker
-    mapping(string => SCC) public companies;
-    mapping(address => SCC) public companies_address;
-    mapping(string => bool) public registered;
+    mapping(string => SCC) private companies;
+    mapping(address => SCC) private companies_address;
+    mapping(string => bool) private registered;
 
     // modifier
     modifier isRegistered(string memory _companyName) {

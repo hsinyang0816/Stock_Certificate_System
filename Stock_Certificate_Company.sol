@@ -16,6 +16,7 @@ contract SCC is ERC1155 {
     uint public numConfirmationsRequired;
     string public establishingDate;
     uint public shares;
+    address public contract_creator;
 
     // Per condition checker
     mapping(address => bool) public isDirector;
@@ -102,6 +103,7 @@ contract SCC is ERC1155 {
         name = _name;
         establishingDate = _establishingDate;
         shares = _shares;
+        contract_creator = msg.sender;
 
         // mint the initial tokens
         _mint(msg.sender, SWORD, shares, "");
@@ -129,6 +131,10 @@ contract SCC is ERC1155 {
         return directors;
     }
 
+    function getcontract_creator() public view returns (address) {
+        return contract_creator;
+    }
+
     // Function of comparing whether two input string is indentical or not 
     function withStrs(string memory a, string memory b) public pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
@@ -152,6 +158,7 @@ contract SCC is ERC1155 {
     // Function of issuing token
     function issue(uint _amount) private {
         _mint(msg.sender, SWORD, _amount, "");
+        shares = shares + _amount;
         console.log("Issue %s token", _amount);
     }
     
@@ -160,6 +167,7 @@ contract SCC is ERC1155 {
         require(_amount <= shares, "ERROR: Not enough shares to burn");
         _burn(msg.sender, SWORD, _amount);
         _mint(msg.sender, SWORD, _amount*2, "");
+        shares = shares + _amount*2;
         console.log("Reissue %s token", _amount*2);
     }
 
@@ -167,6 +175,7 @@ contract SCC is ERC1155 {
     function transaction(address _target, uint _amount) private {
         // require(_amount <= shares, "ERROR: Not enough shares to transfer to : %s", addressToString(_target));
         safeTransferFrom(msg.sender, _target, SWORD, _amount, "");
+        shares = shares - _amount;
         console.log("Transaction");
     }
 
@@ -174,6 +183,7 @@ contract SCC is ERC1155 {
     function redemption(address _target, uint _amount) private {
         safeTransferFrom(_target, msg.sender, SWORD, _amount, "");
         _burn(msg.sender, SWORD, _amount);
+        shares = shares + _amount;
         console.log("Redemption");
     }
 
@@ -230,5 +240,10 @@ contract SCC is ERC1155 {
         emit ExecuteAction(action.executor, action.executed, action.numConfirmations, action.actionName, action.target, action.amount);
     }
 
-    
+    function sharesModify(uint _amount, uint _actionID) public {
+        Action storage action = actions[_actionID];
+        if(action.executed)
+            shares = shares + _amount;
+        console.log("Shares now is %s: ", shares);
+    }
 }

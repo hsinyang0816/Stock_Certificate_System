@@ -113,6 +113,22 @@ contract SCC is ERC1155 {
         isValidAction["Redeption"] = true;
     }
 
+    function getestablishingDate() public view returns (string memory) {
+        return establishingDate;
+    }
+
+    function getnumConfirmationsRequired() public view returns (uint) {
+        return numConfirmationsRequired;
+    }
+
+    function getshares() public view returns (uint) {
+        return shares;
+    }
+
+    function getdirectors() public view returns (address[] memory) {
+        return directors;
+    }
+
     // Function of comparing whether two input string is indentical or not 
     function withStrs(string memory a, string memory b) public pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
@@ -131,6 +147,7 @@ contract SCC is ERC1155 {
     //     }
     //     return string(str);
     // }  
+
 
     // Function of issuing token
     function issue(uint _amount) private {

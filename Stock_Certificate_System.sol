@@ -12,6 +12,7 @@ contract SCS is ERC1155Holder {
 
     // Per condition checker
     mapping(string => SCC) public companies;
+    mapping(address => SCC) public companies_address;
     mapping(string => bool) public registered;
 
     // modifier
@@ -26,6 +27,7 @@ contract SCS is ERC1155Holder {
         SCC c = new SCC(_companyName,  _establishingDate, _shares,  _directors, _numConfirmationsRequired);
 
         companies[_companyName] = c;
+        companies_address[address(c)] = c;
         registered[_companyName] = true;
         companyNames.push(_companyName);
     }
@@ -34,6 +36,7 @@ contract SCS is ERC1155Holder {
     function showCompanyInformation() public view{
         for(uint i = 0; i < companyNames.length; ++i) {
             console.log("Company Name: %s", companyNames[i]);
+            console.log("Company Address: %s", address(companies[companyNames[i]]));
             console.log("Company Establishing Date: %s", companies[companyNames[i]].getestablishingDate());
             console.log("Number of confirmations required: %s", companies[companyNames[i]].getnumConfirmationsRequired());
             console.log("Company's stocks remain: %s", companies[companyNames[i]].getshares());
@@ -60,13 +63,13 @@ contract SCS is ERC1155Holder {
     // Function transferring stock from company A to company B
     function transaction(string memory _companyName, address target, uint _ammount) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.submitAction(msg.sender, "Transaction", target, _ammount);
+        c.submitAction(msg.sender, "Transaction", companies_address[target].getcontract_creator(), _ammount);
     }
 
     // Function redeeming stock from company B back to company A
     function redemption(string memory _companyName, address target, uint _ammount) public isRegistered(_companyName){
         SCC c = companies[_companyName];
-        c.submitAction(msg.sender, "Redeption", target, _ammount);
+        c.submitAction(msg.sender, "Redeption", companies_address[target].getcontract_creator(), _ammount);
     }
 
     // Function for others directors confirm the action

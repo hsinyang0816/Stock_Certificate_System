@@ -1,10 +1,11 @@
 // contracts/SCS.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.2;
 
-import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+
 import "./Stock_Certificate_Company.sol";
 import "hardhat/console.sol";
+import "@openzeppelin/contracts@4.4.2/token/ERC1155/utils/ERC1155Holder.sol";
 
 contract SCS is ERC1155Holder {
     // List of companies

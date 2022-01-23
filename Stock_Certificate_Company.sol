@@ -1,9 +1,9 @@
 // contracts/SCS.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.2;
 
 
-import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts@4.4.2/token/ERC1155/ERC1155.sol";
 import "hardhat/console.sol";
 
 contract SCC is ERC1155 {
